@@ -9,13 +9,11 @@ public class MongoMessage {
     public static final int SECTION_KIND_DOCUMENT_SEQUENCE = 1;
 
     private final RawBsonDocument body;
-    private final Channel channel;
     private final MsgHeader header;
     private final int flags = 0;
 
-    public MongoMessage(Channel channel, MsgHeader header, RawBsonDocument body) {
+    public MongoMessage(MsgHeader header, RawBsonDocument body) {
         this.body = body;
-        this.channel = channel;
         this.header = header;
     }
 
@@ -30,7 +28,6 @@ public class MongoMessage {
     public String getCommandName() {
         return body.getFirstKey();
     }
-
 
     public RawBsonDocument getBody() {
         return body;

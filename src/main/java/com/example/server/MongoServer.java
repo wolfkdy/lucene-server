@@ -1,6 +1,7 @@
 package com.example.server;
 
-import com.example.protocol.MongoWireProtocolEncoder;
+import com.example.transport.MongoServerHandler;
+import com.example.transport.MongoWireProtocolEncoder;
 import com.example.utils.MongoThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.time.Clock;
 import java.util.concurrent.TimeUnit;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -20,8 +22,8 @@ import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import com.example.protocol.MongoExceptionHandler;
-import com.example.protocol.MongoWireProtocolHandler;
+import com.example.transport.MongoExceptionHandler;
+import com.example.transport.MongoWireProtocolHandler;
 
 import org.slf4j.impl.SimpleLogger;
 import sun.misc.Signal;
@@ -41,6 +43,25 @@ public class MongoServer {
     // something represents the server's binding listen socket
     private Channel serverChannel;
 
+    private MessageProcessor messageProcessor;
+
+    private Clock clock;
+    private static MongoServer instance;
+
+    public MessageProcessor getMessageProcessor() {
+        return messageProcessor;
+    }
+
+    public Clock getClock() {
+        return clock;
+    }
+    private MongoServer() {
+        clock = Clock.systemUTC();
+    }
+
+    public static MongoServer getInstance() {
+        return instance;
+    }
     public void bind(String hostname, int port) {
         bind(new InetSocketAddress(hostname, port));
     }
@@ -72,7 +93,6 @@ public class MongoServer {
                     });
 
             serverChannel = bootstrap.bind().syncUninterruptibly().channel();
-
             log.info("started {}", this);
         } catch (RuntimeException e) {
             shutdown();
@@ -141,6 +161,8 @@ public class MongoServer {
     public static void main(String[] args) {
         System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "DEBUG");
         MongoServer server = new MongoServer();
+        server.messageProcessor = new MessageProcessor();
+        MongoServer.instance = server;
         server.bind("127.0.0.1", 27017);
         Signal.handle(new Signal("INT"), new SignalHandler() {
             @Override
