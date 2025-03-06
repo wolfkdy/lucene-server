@@ -1,12 +1,15 @@
 package com.example.server;
 
+import com.example.storage.IndexCatalog;
 import com.example.transport.MongoServerHandler;
 import com.example.transport.MongoWireProtocolEncoder;
 import com.example.utils.MongoThreadFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.time.Clock;
@@ -25,12 +28,23 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import com.example.transport.MongoExceptionHandler;
 import com.example.transport.MongoWireProtocolHandler;
 
-import org.slf4j.impl.SimpleLogger;
+import org.apache.logging.log4j.core.config.Configurator;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
 import sun.misc.Signal;
 import sun.misc.SignalHandler;
 
 public class MongoServer {
-    private static final Logger log = LoggerFactory.getLogger(MongoServer.class);
+
+
+    public static class ServerConfig {
+        public String host;
+        public int port;
+        public String logLevel;
+        public String dataDir;
+    }
+    private static final Logger log = LogManager.getLogger(MongoServer.class);
 
     private static final int DEFAULT_NETTY_EVENT_LOOP_THREADS = 0;
 
@@ -45,8 +59,14 @@ public class MongoServer {
 
     private MessageProcessor messageProcessor;
 
+    private IndexCatalog indexCatalog;
+
     private Clock clock;
     private static MongoServer instance;
+
+    public IndexCatalog getIndexCatalog() {
+        return indexCatalog;
+    }
 
     public MessageProcessor getMessageProcessor() {
         return messageProcessor;
@@ -93,7 +113,7 @@ public class MongoServer {
                     });
 
             serverChannel = bootstrap.bind().syncUninterruptibly().channel();
-            log.info("started {}", this);
+            log.info("started {} on {}", this, socketAddress.toString());
         } catch (RuntimeException e) {
             shutdown();
             throw e;
@@ -158,12 +178,27 @@ public class MongoServer {
         }
     }
 
-    public static void main(String[] args) {
-        System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "DEBUG");
+    public static ServerConfig loadConfig(String fileName) throws FileNotFoundException {
+        Constructor c = new Constructor(ServerConfig.class, new LoaderOptions());
+        Yaml yaml = new Yaml(c);
+        InputStream is = new FileInputStream(new File(fileName));
+        return yaml.load(is);
+    }
+
+    public static void main(String[] args) throws IOException {
+        String cfgFileName = System.getenv("configFile");
+        if (cfgFileName == null) {
+            log.error("pass a configFile name by -DconfigFile=test.yaml on start");
+            return;
+        }
+        ServerConfig serverConfig = loadConfig(cfgFileName);
+        Configurator.setAllLevels(LogManager.getRootLogger().getName(), Level.valueOf(serverConfig.logLevel));
+        log.info(System.getenv("configFile"));
         MongoServer server = new MongoServer();
         server.messageProcessor = new MessageProcessor();
+        server.indexCatalog = new IndexCatalog(serverConfig.dataDir);
         MongoServer.instance = server;
-        server.bind("127.0.0.1", 27017);
+        server.bind(serverConfig.host, serverConfig.port);
         Signal.handle(new Signal("INT"), new SignalHandler() {
             @Override
             public void handle(Signal sig) {

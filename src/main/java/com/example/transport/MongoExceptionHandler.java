@@ -1,14 +1,15 @@
 package com.example.transport;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.example.storage.HnswIndexAccess;
+import org.apache.logging.log4j.LogManager;
+
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import org.apache.logging.log4j.Logger;
 
 public class MongoExceptionHandler extends ChannelInboundHandlerAdapter {
-
-    private static final Logger log = LoggerFactory.getLogger(MongoExceptionHandler.class);
+    private static final Logger log = LogManager.getLogger(MongoExceptionHandler.class);
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {

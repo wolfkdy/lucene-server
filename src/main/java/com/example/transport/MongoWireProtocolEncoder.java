@@ -2,17 +2,17 @@ package com.example.transport;
 
 import com.example.protocol.MongoMessage;
 import com.example.protocol.OpCode;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bson.RawBsonDocument;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 
 public class MongoWireProtocolEncoder extends MessageToByteEncoder<MongoMessage> {
+    private static final Logger log = LogManager.getLogger(MongoWireProtocolEncoder.class);
 
-    private static final Logger log = LoggerFactory.getLogger(MongoWireProtocolEncoder.class);
     public MongoWireProtocolEncoder() {
         super();
     }

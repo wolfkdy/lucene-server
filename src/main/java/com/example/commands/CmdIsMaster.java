@@ -4,18 +4,18 @@ import com.example.protocol.MongoMessage;
 import com.example.server.MessageProcessor;
 import com.example.server.MongoServer;
 import io.netty.channel.ChannelHandlerContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bson.BsonBinaryWriter;
 import org.bson.RawBsonDocument;
 import org.bson.io.BasicOutputBuffer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 
 import static com.example.transport.TransportConstants.*;
 
 public class CmdIsMaster extends Command {
-    private static final Logger log = LoggerFactory.getLogger(CmdIsMaster.class);
+    private static final Logger log = LogManager.getLogger(CmdIsMaster.class);
     public CmdIsMaster() {
         super("isMaster", "ismaster");
     }

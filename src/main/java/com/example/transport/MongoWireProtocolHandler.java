@@ -10,9 +10,9 @@ import com.example.protocol.MongoMessage;
 import com.example.protocol.MsgHeader;
 import com.example.protocol.OpCode;
 import com.example.utils.Assert;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bson.RawBsonDocument;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 import io.netty.buffer.ByteBuf;
@@ -24,7 +24,7 @@ import static com.example.transport.TransportConstants.MAX_MESSAGE_SIZE_BYTES;
 
 public class MongoWireProtocolHandler extends LengthFieldBasedFrameDecoder {
 
-    private static final Logger log = LoggerFactory.getLogger(MongoWireProtocolHandler.class);
+    private static final Logger log = LogManager.getLogger(MongoWireProtocolHandler.class);
 
     // MAX_MESSAGE_SIZE_BYTES is from message.h ConstView::valid()
 

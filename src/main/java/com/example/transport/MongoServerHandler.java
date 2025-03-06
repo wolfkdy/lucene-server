@@ -8,11 +8,12 @@ import com.example.protocol.MongoMessage;
 import com.example.protocol.MsgHeader;
 import com.example.server.MessageProcessor;
 import com.example.server.MongoServer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bson.BsonBinaryWriter;
 import org.bson.RawBsonDocument;
 import org.bson.io.BasicOutputBuffer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -20,7 +21,7 @@ import io.netty.channel.group.ChannelGroup;
 
 
 public class MongoServerHandler extends SimpleChannelInboundHandler<MongoMessage> {
-    private static final Logger log = LoggerFactory.getLogger(MongoServerHandler.class);
+    private static final Logger log = LogManager.getLogger(MongoServerHandler.class);
 
     private final ChannelGroup channelGroup;
     private final AtomicInteger msgIdSeq = new AtomicInteger();
