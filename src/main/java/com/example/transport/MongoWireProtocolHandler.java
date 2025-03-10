@@ -91,7 +91,7 @@ public class MongoWireProtocolHandler extends LengthFieldBasedFrameDecoder {
             throw new IOException("channal still readable after handleMessage");
         }
 
-        log.info("get cmd {}", request.getBody());
+        log.debug("get cmd {}", request.getBody());
 
         return request;
     }

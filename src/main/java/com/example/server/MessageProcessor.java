@@ -1,24 +1,15 @@
 package com.example.server;
 
-import com.example.commands.CmdCreateVectorIndex;
-import com.example.commands.CmdIsMaster;
-import com.example.commands.Command;
+import com.example.commands.*;
 import com.example.protocol.MongoMessage;
-import com.example.transport.MongoServerHandler;
 import io.netty.channel.ChannelHandlerContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bson.BsonBinaryWriter;
 import org.bson.RawBsonDocument;
-import org.bson.io.BasicOutputBuffer;
 
 
-import java.text.MessageFormat;
-import java.time.Clock;
-import java.time.Instant;
+import java.io.IOException;
 import java.util.HashMap;
-
-import static com.example.transport.TransportConstants.*;
 
 public class MessageProcessor {
     private static final Logger log = LogManager.getLogger(MessageProcessor.class);
@@ -31,15 +22,23 @@ public class MessageProcessor {
         cmdIsMaster.register(cmdMap);
         CmdCreateVectorIndex cmdCreateVectorIndex = new CmdCreateVectorIndex();
         cmdCreateVectorIndex.register(cmdMap);
+        CmdBatchWriteHnsw cmdBatchWrite = new CmdBatchWriteHnsw();
+        cmdBatchWrite.register(cmdMap);
+        CmdVectorSearch cmdVectorSearch = new CmdVectorSearch();
+        cmdVectorSearch.register(cmdMap);
     }
 
-    public RawBsonDocument handleMessage(ChannelHandlerContext opCtx, MongoMessage msg) {
+    public RawBsonDocument handleMessage(ChannelHandlerContext opCtx, MongoMessage msg) throws IOException {
         MongoMessage rsp = null;
-        log.info("get cmd name {}", msg.getCommandName());
+        log.debug("get cmd name {}", msg.getCommandName());
         Command cmd = cmdMap.get(msg.getCommandName());
         if (cmd == null) {
-            throw new UnsupportedOperationException(String.format("%s is not a legal command", msg.getCommandName()));
+            return Command.createErrRspWithMsg(msg.getCommandName() + " is not a valid command name");
         }
-        return cmd.run(opCtx, msg);
+        try {
+            return cmd.run(opCtx, msg);
+        } catch (IOException e) {
+            return Command.createErrRspWithMsg(e.getMessage());
+        }
     }
 }

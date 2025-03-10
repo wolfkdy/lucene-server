@@ -52,6 +52,7 @@ public class CmdCreateVectorIndex extends Command {
         hnswConfig.dimensions = dimensions;
         hnswConfig.efConstruction = efConstruction;
         hnswConfig.maxConn = mmax;
+        hnswConfig.similarity = similarity;
         IndexCatalog.IndexConfig cfg = new IndexCatalog.IndexConfig();
         cfg.hnswConfig = hnswConfig;
         cfg.name = indexName;

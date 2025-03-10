@@ -34,7 +34,7 @@ public class CmdIsMaster extends Command {
         writer.writeEndDocument();
         writer.close();
         RawBsonDocument rsp = new RawBsonDocument(outputBuffer.toByteArray());
-        log.info("build ismaster resp {}", rsp);
+        // log.debug("build ismaster resp {}", rsp);
         return rsp;
     }
 }

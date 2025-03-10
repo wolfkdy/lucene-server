@@ -1,13 +1,16 @@
 package com.example.storage;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 import javax.management.openmbean.KeyAlreadyExistsException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -42,9 +45,12 @@ public class IndexCatalog {
         }
     }
 
+    public synchronized IndexAccess getIndex(String name) {
+        return indexes.getOrDefault(name, null);
+    }
     public synchronized void createIndex(IndexConfig cfg) throws IOException {
         if (indexes.containsKey(cfg.name)) {
-            throw new KeyAlreadyExistsException(cfg.name + "already exists");
+            throw new IOException(cfg.name + " already exists");
         }
         IndexAccess ia = null;
         if (cfg.hnswConfig != null) {
@@ -55,6 +61,21 @@ public class IndexCatalog {
         if (ia == null) {
             throw new IllegalArgumentException("unknown index config type");
         }
+        Path metaFilePath = Paths.get(rootDir.toString(), META_FILE);
+        ArrayList<IndexConfig> indexCfgs;
+        if (metaFilePath.toFile().exists()) {
+            String text = Files.readString(metaFilePath);
+            Type indexCfgType = new TypeToken<ArrayList<IndexConfig>>(){}.getType();
+            indexCfgs = new Gson().fromJson(text, indexCfgType);
+        } else {
+            indexCfgs = new ArrayList<IndexConfig>();
+        }
+        indexCfgs.add(cfg);
+        String newCfg = new GsonBuilder().setPrettyPrinting().create().toJson(indexCfgs);
+        Path tmpMetaPath = Paths.get(rootDir.toString(), META_FILE + ".tmp");
+        Files.writeString(tmpMetaPath, newCfg, StandardOpenOption.CREATE);
+        Files.move(tmpMetaPath, metaFilePath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+
         indexes.put(cfg.name, ia);
     }
 }

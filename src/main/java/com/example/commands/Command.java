@@ -8,6 +8,7 @@ import org.bson.BsonBinaryWriter;
 import org.bson.RawBsonDocument;
 import org.bson.io.BasicOutputBuffer;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.HashMap;
 
@@ -24,14 +25,14 @@ public abstract class Command {
         this.name = name;
         this.oldName = oldName;
     }
-    public abstract RawBsonDocument run(ChannelHandlerContext opCtx, MongoMessage msg);
+    public abstract RawBsonDocument run(ChannelHandlerContext opCtx, MongoMessage msg) throws IOException;
     public void register(HashMap<String, Command> m) {
         m.put(name, this);
         if (oldName != null) {
             m.put(oldName, this);
         }
     }
-    static RawBsonDocument createErrRspWithMsg(String msg) {
+    public static RawBsonDocument createErrRspWithMsg(String msg) {
         BasicOutputBuffer outputBuffer = new BasicOutputBuffer();
         BsonBinaryWriter writer = new BsonBinaryWriter(outputBuffer);
         writer.writeStartDocument();

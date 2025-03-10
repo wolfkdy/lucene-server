@@ -1,5 +1,6 @@
 package com.example.transport;
 
+import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,7 +48,7 @@ public class MongoServerHandler extends SimpleChannelInboundHandler<MongoMessage
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, MongoMessage msg) {
+    protected void channelRead0(ChannelHandlerContext ctx, MongoMessage msg) throws IOException {
         MessageProcessor mp = MongoServer.getInstance().getMessageProcessor();
         RawBsonDocument rsp = mp.handleMessage(ctx, msg);
         MongoMessage rspMsg = new MongoMessage(createResponseMsgHeader(msg), rsp);

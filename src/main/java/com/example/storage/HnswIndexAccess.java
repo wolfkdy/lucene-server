@@ -8,13 +8,17 @@ import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.lucene95.Lucene95Codec;
 import org.apache.lucene.codecs.lucene95.Lucene95HnswVectorsFormat;
+import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
+import org.apache.lucene.search.*;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class HnswIndexAccess extends IndexAccess {
     private static final org.apache.logging.log4j.Logger log = LogManager.getLogger(HnswIndexAccess.class);
@@ -23,7 +27,12 @@ public class HnswIndexAccess extends IndexAccess {
         public int efConstruction;
         public int maxConn;
         public int dimensions;
+        public String similarity;
     }
+
+    private final VectorSimilarityFunction similarity;
+    private final int dimensions;
+
     public static HnswIndexAccess createInstance(Path dir, HnswConfig cfg) throws IOException {
         Directory index = FSDirectory.open(dir);
         Lucene95Codec knnVectorsCodec = new Lucene95Codec(Lucene95Codec.Mode.BEST_SPEED) {
@@ -37,12 +46,82 @@ public class HnswIndexAccess extends IndexAccess {
         };
         IndexWriterConfig config = new IndexWriterConfig(new StandardAnalyzer()).setCodec(knnVectorsCodec);
         IndexWriter writer = new IndexWriter(index, config);
-        IndexReader reader = DirectoryReader.open(writer);
-        return new HnswIndexAccess(writer, reader);
+        DirectoryReader reader = DirectoryReader.open(writer);
+
+        final VectorSimilarityFunction sim;
+        if (cfg.similarity.equals("eucliean")) {
+            sim = VectorSimilarityFunction.EUCLIDEAN;
+        } else if (cfg.similarity.equals("cosine")) {
+            sim = VectorSimilarityFunction.COSINE;
+        } else if (cfg.similarity.equals("dotProduct")) {
+            sim = VectorSimilarityFunction.DOT_PRODUCT;
+        } else {
+            throw new IllegalArgumentException("unknown similairity type " + cfg.similarity);
+        }
+        return new HnswIndexAccess(writer, reader, sim, cfg.dimensions);
     }
 
-    private HnswIndexAccess(IndexWriter writer, IndexReader reader) throws IOException {
+    public String[] knn(float[] query, int k, int candidates) throws IOException {
+        rwLock.readLock().lock();
+        try {
+            return doKnnInLock(query, k, candidates);
+        } finally {
+            rwLock.readLock().unlock();
+        }
+    }
+
+    private String[] doKnnInLock(float[] q, int k, int m) throws IOException {
+        IndexSearcher searcher = new IndexSearcher(directoryReader.get());
+        Query query = new KnnFloatVectorQuery("vector", q, m);
+        TopDocs topDocs = searcher.search(query, k);
+        ScoreDoc[] hits = topDocs.scoreDocs;
+        String[] ids = new String[hits.length];
+        int i = 0;
+        for (ScoreDoc hit: hits) {
+            Document d = searcher.storedFields().document(hit.doc);
+            ids[i++] = d.get("id");
+        }
+        return ids;
+    }
+
+    /*
+     * TODO(deyukong):
+     * NOTE(deyukong): the multi-thread access model of this class is NOT determined.
+     * should it be 1-writer-n-readers or n-writers-n-readers? As writing is in  batch mode,
+     * a single-writer probably may be enough, if so, a explicitly synchronized keyword
+     * should be marked somewhere.
+     */
+    @Override
+    protected void doBatchWrite(WriteBatch batch) throws IOException {
+        for (WriteBatch.Op o : batch.ops) {
+            WriteBatch.HnswOp op = (WriteBatch.HnswOp) o;
+            if (op.isInsert()) {
+                Document doc = new Document();
+                doc.add(new StringField("id", op.id, Field.Store.YES));
+                if (op.vector.length != dimensions) {
+                    throw new IllegalArgumentException("invalid vector length");
+                }
+                doc.add(new KnnFloatVectorField("vector", op.vector, similarity));
+                indexWriter.addDocument(doc);
+            } else if (op.isDelete()) {
+                indexWriter.deleteDocuments(new Term("id", op.id));
+            } else if (op.isUpdate()) {
+                // TODO fulfill logic
+                // NOTE(deyukong): use insert/delete in common, use update only when
+                // server didn't response properly, such as a crash or timeout.
+            }
+        }
+
+        if (batch.autoCommit) {
+            indexWriter.commit();
+            refreshReader();
+        }
+    }
+
+    private HnswIndexAccess(IndexWriter writer, DirectoryReader reader, VectorSimilarityFunction sim, int dimensions) throws IOException {
         super(writer, reader);
+        this.similarity = sim;
+        this.dimensions = dimensions;
     }
 
     private static class HighDimensionKnnVectorsFormat extends KnnVectorsFormat {
