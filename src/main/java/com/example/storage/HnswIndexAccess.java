@@ -33,7 +33,7 @@ public class HnswIndexAccess extends IndexAccess {
     private final VectorSimilarityFunction similarity;
     private final int dimensions;
 
-    public static HnswIndexAccess createInstance(Path dir, HnswConfig cfg) throws IOException {
+    public static HnswIndexAccess createInstance(Path dir, HnswConfig cfg, MergeScheduler ms, int maxSegmentSize) throws IOException {
         Directory index = FSDirectory.open(dir);
         Lucene95Codec knnVectorsCodec = new Lucene95Codec(Lucene95Codec.Mode.BEST_SPEED) {
             @Override
@@ -45,6 +45,10 @@ public class HnswIndexAccess extends IndexAccess {
             }
         };
         IndexWriterConfig config = new IndexWriterConfig(new StandardAnalyzer()).setCodec(knnVectorsCodec);
+        config.setMergeScheduler(ms);
+        TieredMergePolicy mp = new TieredMergePolicy();
+        mp.setMaxMergedSegmentMB(maxSegmentSize);
+        config.setMergePolicy(mp);
         IndexWriter writer = new IndexWriter(index, config);
         DirectoryReader reader = DirectoryReader.open(writer);
 
@@ -95,20 +99,22 @@ public class HnswIndexAccess extends IndexAccess {
     protected void doBatchWrite(WriteBatch batch) throws IOException {
         for (WriteBatch.Op o : batch.ops) {
             WriteBatch.HnswOp op = (WriteBatch.HnswOp) o;
-            if (op.isInsert()) {
-                Document doc = new Document();
+            Document doc = null;
+            if (op.isInsert() || op.isUpdate()) {
+                doc = new Document();
                 doc.add(new StringField("id", op.id, Field.Store.YES));
                 if (op.vector.length != dimensions) {
                     throw new IllegalArgumentException("invalid vector length");
                 }
                 doc.add(new KnnFloatVectorField("vector", op.vector, similarity));
+            }
+            if (op.isInsert()) {
                 indexWriter.addDocument(doc);
             } else if (op.isDelete()) {
                 indexWriter.deleteDocuments(new Term("id", op.id));
             } else if (op.isUpdate()) {
-                // TODO fulfill logic
-                // NOTE(deyukong): use insert/delete in common, use update only when
-                // server didn't response properly, such as a crash or timeout.
+                Document odc = new Document();
+                indexWriter.updateDocument(new Term("id", op.id), doc);
             }
         }
 

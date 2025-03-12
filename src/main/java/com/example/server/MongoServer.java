@@ -4,6 +4,7 @@ import com.example.storage.IndexCatalog;
 import com.example.transport.MongoServerHandler;
 import com.example.transport.MongoWireProtocolEncoder;
 import com.example.utils.MongoThreadFactory;
+import com.example.utils.ServerParameter;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,6 +14,8 @@ import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.time.Clock;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -43,6 +46,11 @@ public class MongoServer {
         public int port;
         public String logLevel;
         public String dataDir;
+        public HashMap<String, Object> setParameters;
+        public int maxMergeThreads = 4;
+        public int maxMergeTasks = 8;
+        public int hnswMaxSegmentSizeMB = 1024;
+        public int invertedIndexMaxSegmentSizeMB = 1024;
     }
     private static final Logger log = LogManager.getLogger(MongoServer.class);
 
@@ -185,13 +193,23 @@ public class MongoServer {
         return yaml.load(is);
     }
 
+    /*
+     * access classes with static variables which must be inited in particular order
+     */
+    public static void touchDependency() {
+        IndexCatalog.touch();
+    }
+
     public static void main(String[] args) throws IOException {
+        touchDependency();
         String cfgFileName = System.getenv("configFile");
         if (cfgFileName == null) {
             log.error("pass a configFile name by -DconfigFile=test.yaml on start");
             return;
         }
         ServerConfig serverConfig = loadConfig(cfgFileName);
+        ServerParameter.load(serverConfig.setParameters);
+
         Configurator.setAllLevels(LogManager.getRootLogger().getName(), Level.valueOf(serverConfig.logLevel));
         log.info(System.getenv("configFile"));
         MongoServer server = new MongoServer();
