@@ -36,7 +36,7 @@ public class HnswIndexAccess extends IndexAccess {
 
     public static HnswIndexAccess createInstance(
             Path dir, Clock c, HnswConfig cfg, MergeScheduler ms, long maxSegmentSize, long ramBufferSizeMB) throws IOException {
-        Directory index = FSDirectory.open(dir);
+        FSDirectory index = FSDirectory.open(dir);
         Lucene95Codec knnVectorsCodec = new Lucene95Codec(Lucene95Codec.Mode.BEST_SPEED) {
             @Override
             public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
@@ -52,8 +52,7 @@ public class HnswIndexAccess extends IndexAccess {
         mp.setMaxMergedSegmentMB(maxSegmentSize);
         config.setMergePolicy(mp);
         config.setRAMBufferSizeMB(ramBufferSizeMB);
-        IndexWriter writer = new IndexWriter(index, config);
-        DirectoryReader reader = DirectoryReader.open(writer);
+
 
         final VectorSimilarityFunction sim;
         if (cfg.similarity.equals("eucliean")) {
@@ -65,7 +64,7 @@ public class HnswIndexAccess extends IndexAccess {
         } else {
             throw new IllegalArgumentException("unknown similairity type " + cfg.similarity);
         }
-        return new HnswIndexAccess(writer, reader, c, sim, cfg.dimensions);
+        return new HnswIndexAccess(index, config, c, sim, cfg.dimensions);
     }
 
     public String[] knn(float[] query, int k, int candidates) throws IOException {
@@ -126,8 +125,8 @@ public class HnswIndexAccess extends IndexAccess {
         }
     }
 
-    private HnswIndexAccess(IndexWriter writer, DirectoryReader reader, Clock c, VectorSimilarityFunction sim, int dimensions) throws IOException {
-        super(writer, reader, c);
+    private HnswIndexAccess(FSDirectory d, IndexWriterConfig cfg, Clock c, VectorSimilarityFunction sim, int dimensions) throws IOException {
+        super(d, cfg, c);
         this.similarity = sim;
         this.dimensions = dimensions;
     }

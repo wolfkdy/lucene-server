@@ -28,16 +28,16 @@ public class IndexCatalog extends Thread {
     private static final ServerParameter<Integer> maxMergeTasks =
             new ServerParameter<>("maxMergeTasks", 8, true);
     // hnswMaxSegmentSizeMB and invertedIndexMaxSegmentSizeMB can not be changed at runtime because It's not sure whether MergePolicy is changeable at runtime.
-    private static final ServerParameter<Long> hnswMaxSegmentSizeMB =
-            new ServerParameter<>("hnswMaxSegmentSizeMB", 1024L, false);
-    private static final ServerParameter<Long> invertedIndexMaxSegmentSizeMB =
-            new ServerParameter<>("invertedIndexMaxSegmentSizeMB", 1024L, false);
-    private static final ServerParameter<Long> maxBufferedMemoryPerIndex =
-            new ServerParameter<>("maxBufferedMemoryMBPerIndex", 64L, false);
-    private static final ServerParameter<Long> maxBufferedMemoryMBAllIndexes =
-            new ServerParameter<>("maxBufferedMemoryMBAllIndexes", 1024L, false);
-    private static final ServerParameter<Long> maxIndexInMemoryMillis =
-            new ServerParameter<>("maxIndexInMemoryMillis", 60*1000L, true);
+    private static final ServerParameter<Integer> hnswMaxSegmentSizeMB =
+            new ServerParameter<>("hnswMaxSegmentSizeMB", 1024, false);
+    private static final ServerParameter<Integer> invertedIndexMaxSegmentSizeMB =
+            new ServerParameter<>("invertedIndexMaxSegmentSizeMB", 1024, false);
+    private static final ServerParameter<Integer> maxBufferedMemoryPerIndex =
+            new ServerParameter<>("maxBufferedMemoryMBPerIndex", 64, false);
+    private static final ServerParameter<Integer> maxBufferedMemoryMBAllIndexes =
+            new ServerParameter<>("maxBufferedMemoryMBAllIndexes", 1024, false);
+    private static final ServerParameter<Integer> maxIndexInMemoryMillis =
+            new ServerParameter<>("maxIndexInMemoryMillis", 60*1000, true);
     public static class IndexConfig {
         public String name;
         public String path;
@@ -49,7 +49,7 @@ public class IndexCatalog extends Thread {
     private final ConcurrentMergeScheduler mergeScheduler;
     private final Clock clock;
 
-    public static void touch() {}
+    public static void loadClass() {}
 
     public void close() {
         interrupt();
@@ -57,6 +57,52 @@ public class IndexCatalog extends Thread {
             join();
         } catch (InterruptedException e) {
             log.warn("caught {} during IndexCatalog.close", e.getMessage());
+        }
+    }
+
+    public synchronized void advanceWriteTimestamp(long ts) {
+        for (Map.Entry<String, IndexAccess> entry : indexes.entrySet()) {
+            try {
+                entry.getValue().advanceWriteTimestamp(ts);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("index " + entry.getKey() + " " + e.getMessage());
+            }
+        }
+    }
+
+    public synchronized long getCommittedTimestamp() {
+        long result = Long.MAX_VALUE;
+        for (Map.Entry<String, IndexAccess> entry : indexes.entrySet()) {
+            result = Long.min(result, entry.getValue().getCommittedTimestamp());
+        }
+        return result;
+    }
+
+    public synchronized Set<String> getAllIndexNames() {
+        return indexes.keySet();
+    }
+
+    public Collection<String> beginBackup() throws IOException {
+        final Set<Map.Entry<String, IndexAccess>> entries;
+        synchronized (this) {
+            entries = indexes.entrySet();
+        }
+        ArrayList<String> result = new ArrayList<>();
+        for (Map.Entry<String, IndexAccess> entry : entries) {
+            for (String subPath : entry.getValue().beginBackup()) {
+                result.add(Paths.get(entry.getValue().getDirectory().toString(), subPath).toString());
+            }
+        }
+        return result;
+    }
+
+    public void endBackup() throws IOException {
+        final Set<Map.Entry<String, IndexAccess>> entries;
+        synchronized (this) {
+            entries = indexes.entrySet();
+        }
+        for (Map.Entry<String, IndexAccess> entry : entries) {
+            entry.getValue().endBackup();
         }
     }
 

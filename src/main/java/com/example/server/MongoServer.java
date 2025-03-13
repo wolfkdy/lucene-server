@@ -47,10 +47,6 @@ public class MongoServer {
         public String logLevel;
         public String dataDir;
         public HashMap<String, Object> setParameters;
-        public int maxMergeThreads = 4;
-        public int maxMergeTasks = 8;
-        public int hnswMaxSegmentSizeMB = 1024;
-        public int invertedIndexMaxSegmentSizeMB = 1024;
     }
     private static final Logger log = LogManager.getLogger(MongoServer.class);
 
@@ -201,12 +197,12 @@ public class MongoServer {
     /*
      * access classes with static variables which must be inited in particular order
      */
-    public static void touchDependency() {
-        IndexCatalog.touch();
+    public static void loadClass() {
+        IndexCatalog.loadClass();
     }
 
     public static void main(String[] args) throws IOException {
-        touchDependency();
+        loadClass();
         String cfgFileName = System.getenv("configFile");
         if (cfgFileName == null) {
             log.error("pass a configFile name by -DconfigFile=test.yaml on start");

@@ -18,14 +18,19 @@ public class MessageProcessor {
 
     MessageProcessor() {
         cmdMap = new HashMap<String, Command>();
-        CmdIsMaster cmdIsMaster = new CmdIsMaster();
-        cmdIsMaster.register(cmdMap);
-        CmdCreateVectorIndex cmdCreateVectorIndex = new CmdCreateVectorIndex();
-        cmdCreateVectorIndex.register(cmdMap);
-        CmdBatchWriteHnsw cmdBatchWrite = new CmdBatchWriteHnsw();
-        cmdBatchWrite.register(cmdMap);
-        CmdVectorSearch cmdVectorSearch = new CmdVectorSearch();
-        cmdVectorSearch.register(cmdMap);
+        Command [] cmds = {
+                new CmdIsMaster(),
+                new CmdCreateVectorIndex(),
+                new CmdBatchWriteHnsw(),
+                new CmdVectorSearch(),
+                new CmdBeginBackup(),
+                new CmdEndBackup(),
+                new CmdAdvanceWriteTimestamp(),
+                new CmdListIndexes(),
+        };
+        for (Command c : cmds) {
+            c.register(cmdMap);
+        }
     }
 
     public RawBsonDocument handleMessage(ChannelHandlerContext opCtx, MongoMessage msg) throws IOException {

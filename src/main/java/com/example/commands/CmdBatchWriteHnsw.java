@@ -54,6 +54,7 @@ public class CmdBatchWriteHnsw extends Command {
         result.indexName = indexName;
         return result;
     }
+
     /*
      * {
      *     "batchWrite": 1,
