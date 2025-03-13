@@ -134,9 +134,11 @@ public class MongoServer {
      * clients are finished.
      */
     public synchronized void shutdown() {
+        log.info("server {} shutdown begins...", this);
         stopListening();
         closeClients();
         // Shut down all event loops to terminate all threads.
+        log.info("server {} shutdown netty threadpool", this);
         if (bossGroup != null) {
             bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS);
         }
@@ -149,6 +151,11 @@ public class MongoServer {
         }
         if (workerGroup != null) {
             workerGroup.terminationFuture().syncUninterruptibly();
+        }
+
+        log.info("server {} close indexCatalog", this);
+        if (indexCatalog != null) {
+            indexCatalog.close();
         }
 
         log.info("completed shutdown of {}", this);
@@ -178,9 +185,7 @@ public class MongoServer {
     private void closeClients() {
         if (channelGroup != null) {
             int numClients = channelGroup.size();
-            if (numClients > 0) {
-                log.warn("Closing {} clients", numClients);
-            }
+            log.info("Closing {} clients", numClients);
             channelGroup.close().syncUninterruptibly();
             channelGroup = null;
         }
@@ -214,7 +219,8 @@ public class MongoServer {
         log.info(System.getenv("configFile"));
         MongoServer server = new MongoServer();
         server.messageProcessor = new MessageProcessor();
-        server.indexCatalog = new IndexCatalog(serverConfig.dataDir);
+        server.indexCatalog = new IndexCatalog(serverConfig.dataDir, server.getClock());
+        server.indexCatalog.start();
         MongoServer.instance = server;
         server.bind(serverConfig.host, serverConfig.port);
         Signal.handle(new Signal("INT"), new SignalHandler() {

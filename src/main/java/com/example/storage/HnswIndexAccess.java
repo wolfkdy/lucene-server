@@ -17,6 +17,7 @@ import org.apache.lucene.store.FSDirectory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -33,7 +34,8 @@ public class HnswIndexAccess extends IndexAccess {
     private final VectorSimilarityFunction similarity;
     private final int dimensions;
 
-    public static HnswIndexAccess createInstance(Path dir, HnswConfig cfg, MergeScheduler ms, int maxSegmentSize) throws IOException {
+    public static HnswIndexAccess createInstance(
+            Path dir, Clock c, HnswConfig cfg, MergeScheduler ms, long maxSegmentSize, long ramBufferSizeMB) throws IOException {
         Directory index = FSDirectory.open(dir);
         Lucene95Codec knnVectorsCodec = new Lucene95Codec(Lucene95Codec.Mode.BEST_SPEED) {
             @Override
@@ -49,6 +51,7 @@ public class HnswIndexAccess extends IndexAccess {
         TieredMergePolicy mp = new TieredMergePolicy();
         mp.setMaxMergedSegmentMB(maxSegmentSize);
         config.setMergePolicy(mp);
+        config.setRAMBufferSizeMB(ramBufferSizeMB);
         IndexWriter writer = new IndexWriter(index, config);
         DirectoryReader reader = DirectoryReader.open(writer);
 
@@ -62,7 +65,7 @@ public class HnswIndexAccess extends IndexAccess {
         } else {
             throw new IllegalArgumentException("unknown similairity type " + cfg.similarity);
         }
-        return new HnswIndexAccess(writer, reader, sim, cfg.dimensions);
+        return new HnswIndexAccess(writer, reader, c, sim, cfg.dimensions);
     }
 
     public String[] knn(float[] query, int k, int candidates) throws IOException {
@@ -119,13 +122,12 @@ public class HnswIndexAccess extends IndexAccess {
         }
 
         if (batch.autoCommit) {
-            indexWriter.commit();
-            refreshReader();
+            commitAndRefreshReaderInLock();
         }
     }
 
-    private HnswIndexAccess(IndexWriter writer, DirectoryReader reader, VectorSimilarityFunction sim, int dimensions) throws IOException {
-        super(writer, reader);
+    private HnswIndexAccess(IndexWriter writer, DirectoryReader reader, Clock c, VectorSimilarityFunction sim, int dimensions) throws IOException {
+        super(writer, reader, c);
         this.similarity = sim;
         this.dimensions = dimensions;
     }
