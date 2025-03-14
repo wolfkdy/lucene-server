@@ -27,6 +27,7 @@ public class MessageProcessor {
                 new CmdEndBackup(),
                 new CmdAdvanceWriteTimestamp(),
                 new CmdListIndexes(),
+                new CmdDropIndex(),
         };
         for (Command c : cmds) {
             c.register(cmdMap);
@@ -43,7 +44,7 @@ public class MessageProcessor {
         try {
             return cmd.run(opCtx, msg);
         } catch (IOException e) {
-            return Command.createErrRspWithMsg(e.getMessage());
+            return Command.createErrRspWithMsg(e.toString());
         }
     }
 }

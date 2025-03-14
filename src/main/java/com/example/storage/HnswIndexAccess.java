@@ -115,7 +115,6 @@ public class HnswIndexAccess extends IndexAccess {
             } else if (op.isDelete()) {
                 indexWriter.deleteDocuments(new Term("id", op.id));
             } else if (op.isUpdate()) {
-                Document odc = new Document();
                 indexWriter.updateDocument(new Term("id", op.id), doc);
             }
         }

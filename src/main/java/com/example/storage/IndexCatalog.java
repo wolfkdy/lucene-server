@@ -7,9 +7,11 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.util.FileUtils;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 
 import javax.management.openmbean.KeyAlreadyExistsException;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -181,6 +183,27 @@ public class IndexCatalog extends Thread {
         return indexes.getOrDefault(name, null);
     }
 
+    public ArrayList<IndexConfig> loadIndexConfigs() throws IOException {
+        Path metaFilePath = Paths.get(rootDir.toString(), META_FILE);
+        ArrayList<IndexConfig> indexCfgs;
+        if (metaFilePath.toFile().exists()) {
+            String text = Files.readString(metaFilePath);
+            Type indexCfgType = new TypeToken<ArrayList<IndexConfig>>(){}.getType();
+            indexCfgs = new Gson().fromJson(text, indexCfgType);
+        } else {
+            indexCfgs = new ArrayList<>();
+        }
+        return indexCfgs;
+    }
+
+    public void saveIndexConfigs(ArrayList<IndexConfig> indexCfgs) throws IOException {
+        String newCfg = new GsonBuilder().setPrettyPrinting().create().toJson(indexCfgs);
+        Path tmpMetaPath = Paths.get(rootDir.toString(), META_FILE + ".tmp");
+        Path metaFilePath = Paths.get(rootDir.toString(), META_FILE);
+        Files.writeString(tmpMetaPath, newCfg, StandardOpenOption.CREATE);
+        Files.move(tmpMetaPath, metaFilePath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+    }
+
     // TODO(wolfkdy): move IO(write metafile) out of mutex, use a queue for FIFO operations, Use a cv to notify IO complete.
     public synchronized void createIndex(IndexConfig cfg) throws IOException {
         if (indexes.containsKey(cfg.name)) {
@@ -201,21 +224,27 @@ public class IndexCatalog extends Thread {
         if (ia == null) {
             throw new IllegalArgumentException("unknown index config type");
         }
-        Path metaFilePath = Paths.get(rootDir.toString(), META_FILE);
-        ArrayList<IndexConfig> indexCfgs;
-        if (metaFilePath.toFile().exists()) {
-            String text = Files.readString(metaFilePath);
-            Type indexCfgType = new TypeToken<ArrayList<IndexConfig>>(){}.getType();
-            indexCfgs = new Gson().fromJson(text, indexCfgType);
-        } else {
-            indexCfgs = new ArrayList<>();
-        }
+
+        ArrayList<IndexConfig> indexCfgs = loadIndexConfigs();
         indexCfgs.add(cfg);
-        String newCfg = new GsonBuilder().setPrettyPrinting().create().toJson(indexCfgs);
-        Path tmpMetaPath = Paths.get(rootDir.toString(), META_FILE + ".tmp");
-        Files.writeString(tmpMetaPath, newCfg, StandardOpenOption.CREATE);
-        Files.move(tmpMetaPath, metaFilePath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        saveIndexConfigs(indexCfgs);
 
         indexes.put(cfg.name, ia);
+    }
+
+    // TODO(wolfkdy): move IO(write metafile) out of mutex, use a queue for FIFO operations, Use a cv to notify IO complete.
+    public synchronized void dropIndex(String name) throws IOException {
+        if (!indexes.containsKey(name)) {
+            return;
+        }
+        IndexAccess ia = indexes.get(name);
+        ia.drop();
+        try (var dirStream = Files.walk(ia.getDirectory())) {
+            dirStream.map(Path::toFile).sorted(Comparator.reverseOrder()).forEach(File::delete);
+        }
+        ArrayList<IndexConfig> indexCfgs = loadIndexConfigs();
+        indexCfgs.removeIf(o -> o.name.equals(name));
+        saveIndexConfigs(indexCfgs);
+        indexes.remove(name);
     }
 }

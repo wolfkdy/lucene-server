@@ -157,8 +157,8 @@ public abstract class IndexAccess {
                     backup = null;
                 }
             }
-            indexWriter.deleteAll();
             indexWriter.commit();
+            indexWriter.deleteAll();
             indexWriter.close();
         } finally {
             rwLock.writeLock().unlock();
