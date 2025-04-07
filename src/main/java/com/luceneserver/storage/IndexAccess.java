@@ -115,15 +115,15 @@ public abstract class IndexAccess {
     public void commitAndRefreshReader() throws IOException {
         rwLock.readLock().lock();
         try {
-            long oldVal = lastWriteTimestamp.get();
             commitAndRefreshReaderInLock();
-            lastWriteTimestamp.set(oldVal);
         } finally {
             rwLock.readLock().unlock();
         }
     }
     protected void commitAndRefreshReaderInLock() throws IOException {
+        long oldVal = lastWriteTimestamp.get();
         indexWriter.commit();
+        lastCommittedTimestamp.set(oldVal);
         lastCommitMillis = clock.millis();
         refreshReader();
     }

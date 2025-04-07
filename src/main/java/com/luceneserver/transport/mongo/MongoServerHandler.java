@@ -46,9 +46,7 @@ public class MongoServerHandler extends SimpleChannelInboundHandler<MongoMessage
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, MongoMessage msg) throws IOException {
         MessageProcessor mp = MongoServer.getInstance().getMessageProcessor();
-        RawBsonDocument rsp = mp.handleMessage(ctx, msg);
-        MongoMessage rspMsg = new MongoMessage(createResponseMsgHeader(msg), rsp, msg.isLegacyFormat());
-        ctx.channel().writeAndFlush(rspMsg);
+        mp.process(ctx, msg, createResponseMsgHeader(msg));
     }
 
     protected MsgHeader createResponseMsgHeader(MongoMessage inMsg) {

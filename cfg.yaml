@@ -1,7 +1,11 @@
 host: 127.0.0.1
 port: 27017
-logLevel: info
+logLevel: debug
 dataDir: C:\Users\kdy\IdeaProjects\bson-server\data
+messageProcessor:
+  minPoolSize: 12
+  maxPoolSize: 1000
+  threadIdleMillis: 60000
 setParameters:
   maxMergeThreads: 4
   maxMergeTasks: 8

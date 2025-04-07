@@ -45,11 +45,10 @@ public class MongoServer {
         public int port;
         public String logLevel;
         public String dataDir;
+        public MessageProcessor.Config messageProcessor;
         public HashMap<String, Object> setParameters;
     }
     private static final Logger log = LogManager.getLogger(MongoServer.class);
-
-    private static final int DEFAULT_NETTY_EVENT_LOOP_THREADS = 0;
 
     private EventLoopGroup bossGroup;
 
@@ -64,7 +63,8 @@ public class MongoServer {
 
     private IndexCatalog indexCatalog;
 
-    private Clock clock;
+    private final Clock clock;
+
     private static MongoServer instance;
 
     public IndexCatalog getIndexCatalog() {
@@ -90,12 +90,9 @@ public class MongoServer {
     }
 
     public void bind(SocketAddress socketAddress) {
-        bind(socketAddress, DEFAULT_NETTY_EVENT_LOOP_THREADS, DEFAULT_NETTY_EVENT_LOOP_THREADS);
-    }
-
-    public void bind(SocketAddress socketAddress, int numberOfBossThreads, int numberOfWorkerThreads) {
-        bossGroup = new NioEventLoopGroup(numberOfBossThreads, new MongoThreadFactory("mongo-server-boss"));
-        workerGroup = new NioEventLoopGroup(numberOfWorkerThreads, new MongoThreadFactory("mongo-server-worker"));
+        // use netty-default by setting nThread = 0, netty resets threads-count to 2*nCPU
+        bossGroup = new NioEventLoopGroup(0, new MongoThreadFactory("mongo-server-boss"));
+        workerGroup = new NioEventLoopGroup(0, new MongoThreadFactory("mongo-server-worker"));
         channelGroup = new DefaultChannelGroup("mongodb-channels", workerGroup.next());
 
         try {
@@ -139,6 +136,9 @@ public class MongoServer {
         }
         if (workerGroup != null) {
             workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS);
+        }
+        if (messageProcessor != null) {
+            messageProcessor.shutdown();
         }
 
         if (bossGroup != null) {
@@ -213,7 +213,7 @@ public class MongoServer {
         Configurator.setAllLevels(LogManager.getRootLogger().getName(), Level.valueOf(serverConfig.logLevel));
         log.info(System.getenv("configFile"));
         MongoServer server = new MongoServer();
-        server.messageProcessor = new MessageProcessor();
+        server.messageProcessor = new MessageProcessor(serverConfig.messageProcessor);
         server.indexCatalog = new IndexCatalog(serverConfig.dataDir, server.getClock());
         server.indexCatalog.start();
         MongoServer.instance = server;

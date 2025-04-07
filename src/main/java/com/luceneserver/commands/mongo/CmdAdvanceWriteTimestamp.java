@@ -7,6 +7,7 @@ import io.netty.channel.ChannelHandlerContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.BsonBinaryWriter;
+import org.bson.BsonTimestamp;
 import org.bson.RawBsonDocument;
 import org.bson.io.BasicOutputBuffer;
 
@@ -33,6 +34,7 @@ public class CmdAdvanceWriteTimestamp extends Command{
         BsonBinaryWriter writer = new BsonBinaryWriter(outputBuffer);
         writer.writeStartDocument();
         writer.writeInt32("ok", 1);
+        writer.writeTimestamp("committedTimestamp", new BsonTimestamp(ic.getCommittedTimestamp()));
         writer.writeEndDocument();
         writer.close();
         return new RawBsonDocument(outputBuffer.toByteArray());

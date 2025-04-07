@@ -113,11 +113,13 @@ public class IndexCatalog extends Thread {
                     for (Map.Entry<String, IndexAccess> entry : indexes.entrySet()) {
                         memoryUsed += entry.getValue().ramBytesUsed();
                     }
-                    if (memoryUsed >= maxBufferedMemoryMBAllIndexes.get()) {
+                    if (memoryUsed >= maxBufferedMemoryMBAllIndexes.get()*1024*1024) {
                         keySet.addAll(indexes.keySet());
                     } else {
                         for (Map.Entry<String, IndexAccess> entry : indexes.entrySet()) {
-                            if (entry.getValue().getLastCommitMillis() + maxIndexInMemoryMillis.get() > clock.millis()) {
+                            IndexAccess ia = entry.getValue();
+                            boolean shouldFlush = ia.getLastCommitMillis() + maxIndexInMemoryMillis.get() < clock.millis();
+                            if (shouldFlush) {
                                 keySet.add(entry.getKey());
                             }
                         }
