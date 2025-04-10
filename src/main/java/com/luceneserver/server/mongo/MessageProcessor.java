@@ -11,7 +11,6 @@ import org.bson.RawBsonDocument;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -32,13 +31,14 @@ public class MessageProcessor {
         Command [] cmds = {
                 new CmdIsMaster(),
                 new CmdCreateVectorIndex(),
-                new CmdBatchWriteHnsw(),
+                new CmdBatchWrite(),
                 new CmdVectorSearch(),
                 new CmdBeginBackup(),
                 new CmdEndBackup(),
                 new CmdAdvanceWriteTimestamp(),
                 new CmdListIndexes(),
                 new CmdDropIndex(),
+                new CmdCreateSearchIndex(),
         };
         for (Command c : cmds) {
             c.register(cmdMap);

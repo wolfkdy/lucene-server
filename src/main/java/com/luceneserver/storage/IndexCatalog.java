@@ -39,6 +39,7 @@ public class IndexCatalog extends Thread {
         public String name;
         public String path;
         public HnswIndexAccess.HnswConfig hnswConfig;
+        public SearchIndexAccess.SearchConfig searchConfig;
     }
 
     private final Path rootDir;
@@ -168,6 +169,14 @@ public class IndexCatalog extends Thread {
                             hnswMaxSegmentSizeMB.get(),
                             maxBufferedMemoryPerIndex.get());
                 } else {
+                    ia = SearchIndexAccess.createInstance(
+                            Paths.get(this.rootDir.toString(), indexCfg.path),
+                            clock,
+                            indexCfg.searchConfig,
+                            mergeScheduler,
+                            hnswMaxSegmentSizeMB.get(),
+                            maxBufferedMemoryPerIndex.get()
+                    );
                 }
                 if (ia != null) {
                     indexes.put(indexCfg.name, ia);
@@ -216,7 +225,14 @@ public class IndexCatalog extends Thread {
                     hnswMaxSegmentSizeMB.get(),
                     maxBufferedMemoryPerIndex.get());
         } else {
-
+            ia = SearchIndexAccess.createInstance(
+                    Paths.get(this.rootDir.toString(), cfg.path),
+                    clock,
+                    cfg.searchConfig,
+                    mergeScheduler,
+                    hnswMaxSegmentSizeMB.get(),
+                    maxBufferedMemoryPerIndex.get()
+            );
         }
         if (ia == null) {
             throw new IllegalArgumentException("unknown index config type");
