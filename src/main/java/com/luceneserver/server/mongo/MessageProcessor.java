@@ -88,7 +88,7 @@ public class MessageProcessor {
         }
         try {
             return cmd.run(opCtx, msg);
-        } catch (IOException e) {
+        } catch (Exception e) {
             return Command.createErrRspWithMsg(e.toString());
         }
     }

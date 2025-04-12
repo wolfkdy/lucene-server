@@ -69,6 +69,9 @@ public class IndexCatalog extends Thread {
     }
 
     public synchronized long getCommittedTimestamp() {
+        if (indexes.isEmpty()) {
+            return 0;
+        }
         long result = Long.MAX_VALUE;
         for (Map.Entry<String, IndexAccess> entry : indexes.entrySet()) {
             result = Long.min(result, entry.getValue().getCommittedTimestamp());
@@ -178,9 +181,8 @@ public class IndexCatalog extends Thread {
                             maxBufferedMemoryPerIndex.get()
                     );
                 }
-                if (ia != null) {
-                    indexes.put(indexCfg.name, ia);
-                }
+                indexes.put(indexCfg.name, ia);
+
             }
         }
     }
@@ -233,9 +235,6 @@ public class IndexCatalog extends Thread {
                     hnswMaxSegmentSizeMB.get(),
                     maxBufferedMemoryPerIndex.get()
             );
-        }
-        if (ia == null) {
-            throw new IllegalArgumentException("unknown index config type");
         }
 
         ArrayList<IndexConfig> indexCfgs = loadIndexConfigs();

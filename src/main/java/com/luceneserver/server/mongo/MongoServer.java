@@ -43,7 +43,6 @@ public class MongoServer {
     public static class ServerConfig {
         public String host;
         public int port;
-        public String logLevel;
         public String dataDir;
         public MessageProcessor.Config messageProcessor;
         public HashMap<String, Object> setParameters;
@@ -202,16 +201,13 @@ public class MongoServer {
 
     public static void main(String[] args) throws IOException {
         loadClass();
-        String cfgFileName = System.getenv("configFile");
+        String cfgFileName = System.getProperty("configFile");
         if (cfgFileName == null) {
             log.error("pass a configFile name by -DconfigFile=test.yaml on start");
             return;
         }
         ServerConfig serverConfig = loadConfig(cfgFileName);
         ServerParameter.load(serverConfig.setParameters);
-
-        Configurator.setAllLevels(LogManager.getRootLogger().getName(), Level.valueOf(serverConfig.logLevel));
-        log.info(System.getenv("configFile"));
         MongoServer server = new MongoServer();
         server.messageProcessor = new MessageProcessor(serverConfig.messageProcessor);
         server.indexCatalog = new IndexCatalog(serverConfig.dataDir, server.getClock());
