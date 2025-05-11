@@ -39,6 +39,7 @@ public class MessageProcessor {
                 new CmdListIndexes(),
                 new CmdDropIndex(),
                 new CmdCreateSearchIndex(),
+                new CmdSearch(),
         };
         for (Command c : cmds) {
             c.register(cmdMap);

@@ -90,7 +90,6 @@ public class CmdBatchWrite extends Command {
         for (BsonValue v : bvs) {
             final WriteBatch.Op op;
             BsonDocument d = v.asDocument();
-            List<BsonValue> bsonVec = d.getArray("vector", null);
             if (ia instanceof HnswIndexAccess) {
                 op = parseHNSWOp(d);
             } else {

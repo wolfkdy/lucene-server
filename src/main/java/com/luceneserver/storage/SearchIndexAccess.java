@@ -7,6 +7,10 @@ import org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
 
 import java.io.IOException;
@@ -27,7 +31,7 @@ public class SearchIndexAccess extends IndexAccess {
         super(d, cfg, c);
     }
 
-    private static Analyzer newAnalyzerFromString(String s) {
+    public static Analyzer newAnalyzerFromString(String s) {
         if (s.equals("lucene.standard")) {
             return new StandardAnalyzer();
         } else if (s.equals("lucene.simple")) {
@@ -54,6 +58,28 @@ public class SearchIndexAccess extends IndexAccess {
         return new SearchIndexAccess(index, config, c);
     }
 
+    public String[] search(Query query, int limit) throws IOException {
+        rwLock.readLock().lock();
+        try {
+            return searchInLock(query, limit);
+        } finally {
+            rwLock.readLock().unlock();
+        }
+    }
+
+    protected String[] searchInLock(Query query, int limit) throws IOException {
+        IndexSearcher searcher = new IndexSearcher(directoryReader.get());
+        TopDocs topDocs = searcher.search(query, limit);
+        ScoreDoc[] hits = topDocs.scoreDocs;
+        String[] ids = new String[hits.length];
+        int i = 0;
+        for (ScoreDoc hit: hits) {
+            Document d = searcher.storedFields().document(hit.doc);
+            ids[i++] = d.get("id");
+        }
+        return ids;
+    }
+
     @Override
     protected void doBatchWrite(WriteBatch batch) throws IOException {
         for (WriteBatch.Op o : batch.ops) {
@@ -78,6 +104,7 @@ public class SearchIndexAccess extends IndexAccess {
             } else if (op.isUpdate()) {
                 indexWriter.updateDocument(new Term("id", op.id), doc);
             }
+            super.doBatchWrite(batch);
         }
     }
 }

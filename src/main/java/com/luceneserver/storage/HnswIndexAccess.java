@@ -113,10 +113,7 @@ public class HnswIndexAccess extends IndexAccess {
                 indexWriter.updateDocument(new Term("id", op.id), doc);
             }
         }
-
-        if (batch.autoCommit) {
-            commitAndRefreshReaderInLock();
-        }
+        super.doBatchWrite(batch);
     }
 
     private HnswIndexAccess(FSDirectory d, IndexWriterConfig cfg, Clock c, VectorSimilarityFunction sim, int dimensions) throws IOException {

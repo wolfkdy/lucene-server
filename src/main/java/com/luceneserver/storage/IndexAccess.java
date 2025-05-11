@@ -43,7 +43,11 @@ public abstract class IndexAccess {
         this(d, iwc, Clock.systemUTC());
     }
 
-    protected abstract void doBatchWrite(WriteBatch batch) throws IOException;
+    protected  void doBatchWrite(WriteBatch batch) throws IOException {
+        if (batch.autoCommit) {
+            commitAndRefreshReaderInLock();
+        }
+    }
 
     public Path getDirectory() { return directory; }
 
