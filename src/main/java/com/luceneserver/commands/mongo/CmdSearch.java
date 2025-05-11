@@ -73,16 +73,16 @@ public class CmdSearch extends Command {
             filterClause = b.build();
         }
         BooleanQuery.Builder resultBuilder = new BooleanQuery.Builder();
-        if (mustClause != null) {
+        if (mustClause != null && !mustClause.clauses().isEmpty()) {
             resultBuilder.add(mustClause, BooleanClause.Occur.MUST);
         }
-        if (mustNotClause != null) {
+        if (mustNotClause != null && !mustNotClause.clauses().isEmpty()) {
             resultBuilder.add(mustNotClause, BooleanClause.Occur.MUST);
         }
-        if (shouldClause != null) {
+        if (shouldClause != null && !shouldClause.clauses().isEmpty()) {
             resultBuilder.add(shouldClause, BooleanClause.Occur.MUST);
         }
-        if (filterClause != null) {
+        if (filterClause != null && !filterClause.clauses().isEmpty()) {
             resultBuilder.add(filterClause, BooleanClause.Occur.MUST);
         }
         return resultBuilder.build();

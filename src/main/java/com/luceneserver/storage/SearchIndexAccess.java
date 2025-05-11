@@ -104,7 +104,7 @@ public class SearchIndexAccess extends IndexAccess {
             } else if (op.isUpdate()) {
                 indexWriter.updateDocument(new Term("id", op.id), doc);
             }
-            super.doBatchWrite(batch);
         }
+        super.doBatchWrite(batch);
     }
 }
